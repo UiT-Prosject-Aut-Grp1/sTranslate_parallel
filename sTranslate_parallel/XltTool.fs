@@ -51,9 +51,6 @@ module XltTool =
     // Database only supports translating from english for now
     let FromLanguageCode = "en"
 
-    // The cached version of the database
-    let mutable _translateColl : List<Translation> = []
-
     // Copies the database to memory
     let GetTranslations =
         use db = dbSchema.GetDataContext(Settings.ConnectionStrings.DbConnectionString)
@@ -61,12 +58,8 @@ module XltTool =
             for row in db.Translation do 
                 select row
         } |> Seq.toList |> List.map toTranslation 
-    
-    let GetCachedCollection =
-        if _translateColl = [] then
-            _translateColl <- GetTranslations
-        _translateColl
-
+ 
+    // Returns the correct translation for the given search
     let FindTranslation (criteria : string) (fromText : string) (property : string) (context : string) toLanguageCode =
         // If fromtext does not contain a word, return an empty string
         if fromText.Trim() = "" then
@@ -85,7 +78,7 @@ module XltTool =
                     | _ -> toLanguageCode
 
                 // Get the database 
-                let collection = GetCachedCollection
+                let collection = GetTranslations
                 
                 // Search for a valid translation
                 let result =
@@ -102,10 +95,12 @@ module XltTool =
                     | Some x -> x.ToText
                     | None -> fromText
     
-    let FindTranslationAsync (criteria : string) (fromText : string) (property : string) (context : string) toLanguageCode = 
-        async { return FindTranslation (criteria : string) (fromText : string) (property : string) (context : string) toLanguageCode }
+    // Wraps FindTranslation inside an async
+    let FindTranslationAsync criteria fromText property context toLanguageCode = 
+        async { return FindTranslation criteria fromText property context toLanguageCode }
 
-    // Takes a list of database searches and returns a list of results, with the results in the same order.
+    // Takes a list of database searches, makes asyncs out of them, and combines them into a single parallel task.
+    // Returns a list of results, that are in the same order as the searches.
     let ToTextBatch (searchList : Search list) =
         searchList
         |> List.map (fun s -> FindTranslationAsync s.Criteria s.FromText s.Property s.Context s.ToLanguageCode)
