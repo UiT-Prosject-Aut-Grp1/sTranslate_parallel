@@ -1,12 +1,10 @@
 ﻿namespace sTranslate_parallel
 
 module XltTool =
-    open System
-    open System.Data
-    open System.Data.Linq
     open FSharp.Data.TypeProviders
-    open Microsoft.FSharp.Linq
     open FSharp.Configuration
+    open FSharpx.Collections.Experimental
+    open FSharp.Collections.ParallelSeq
 
     // Get typed access to App.config to fetch the connection string later
     type Settings = AppSettings<"App.config">
@@ -23,7 +21,7 @@ module XltTool =
         ToLang : string
     }
 
-    // Record type so that we can cache the database to memory and not have the data context go out of scope
+    // Record type so that we can store the database in a list
     type Translation = {
         FromText : string
         ToText : string
@@ -47,13 +45,13 @@ module XltTool =
         ToLang = xlt.ToLang
     }
 
-    // Copies the database to memory
-    let getTranslations =
+    // Copies the database to an efficient data structure
+    let getTranslations = 
         let db = dbSchema.GetDataContext(Settings.ConnectionStrings.DbConnectionString)
         query {
             for row in db.Translation do 
                 select row
-        } |> Seq.toArray |> Array.map toTranslation
+        } |> FlatList.ofSeq |> FlatList.map toTranslation
 
     // Returns the correct translation for the given search
     let findTranslation (s : Search) =
@@ -71,7 +69,7 @@ module XltTool =
             // Search for a valid translation
             let result =
                 getTranslations
-                |> Array.tryFind ( fun row -> 
+                |> FlatList.tryFind ( fun row -> 
                     row.Criteria.ToLower() = s.Criteria.ToLower() &&
                     row.FromLang = fromLang &&
                     row.FromText = s.FromText &&
@@ -83,14 +81,10 @@ module XltTool =
                 | Some x -> x.ToText
                 | None -> s.FromText
 
-    // Wraps FindTranslation inside an async
-    let findTranslationAsync s = 
-        async { return findTranslation s }
-
-    // Takes a list of database searches, makes asyncs out of them, and combines them into a single parallel task.
+    // Takes a list of database searches, and computes them with a parallel sequence.
     // Returns a list of results, that are in the same order as the searches.
-    let getToTextAsync (searchList : Search list) =
+    let getToTextAsync (searchList : Search FlatList) =
         searchList
-        |> List.map findTranslationAsync
-        |> Async.Parallel
-        |> Async.RunSynchronously
+        |> PSeq.ordered
+        |> PSeq.map findTranslation
+        |> FlatList.ofSeq
