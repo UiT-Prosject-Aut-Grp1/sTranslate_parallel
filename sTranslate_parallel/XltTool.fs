@@ -7,7 +7,6 @@ module XltTool =
     open FSharp.Data.TypeProviders
     open Microsoft.FSharp.Linq
     open FSharp.Configuration
-    open XltEnums
 
     // Get typed access to App.config to fetch the connection string later
     type Settings = AppSettings<"App.config">
