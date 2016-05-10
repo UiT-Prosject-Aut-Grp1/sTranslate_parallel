@@ -8,10 +8,10 @@ module XltTool =
     open FSharp.Collections.ParallelSeq
 
     // Get typed access to App.config to fetch the connection string later
-    type Settings = AppSettings<"App.config">
+    type private Settings = AppSettings<"App.config">
 
     // SQL Type Provider. Give it a dummy connection string for now to satisfy the compiler.
-    type dbSchema = SqlDataConnection<ConnectionStringName = "dbConnectionString">
+    type private dbSchema = SqlDataConnection<ConnectionStringName = "dbConnectionString">
 
     // Record type containing a search to the database
     type Search = {
@@ -23,7 +23,7 @@ module XltTool =
     }
 
     // Record type so that we can store the database in a list
-    type Translation = {
+    type private Translation = {
         FromText : string
         ToText : string
         Context : string
@@ -33,10 +33,10 @@ module XltTool =
         ToLang : string
     }
 
-    let fromLang = "en"
+    let private fromLang = "en"
     
     // Copies the contents of a database row into a record type
-    let toTranslation (xlt : dbSchema.ServiceTypes.Translation) = {
+    let private toTranslation (xlt : dbSchema.ServiceTypes.Translation) = {
         FromText = xlt.FromText
         ToText = xlt.ToText
         Context = xlt.Context
@@ -47,7 +47,7 @@ module XltTool =
     }
 
     // Copies the database to an efficient data structure
-    let getTranslations = 
+    let private getTranslations = 
         use db = dbSchema.GetDataContext(Settings.ConnectionStrings.DbConnectionString)
         query {
             for row in db.Translation do 
@@ -55,7 +55,7 @@ module XltTool =
         } |> FlatList.ofSeq |> FlatList.map toTranslation
 
     // Returns the correct translation for the given search
-    let findTranslation (s : Search) =
+    let private findTranslation (s : Search) =
         // If fromtext does not contain a word, return an empty string
         match s.FromText.Trim() with
         | "" -> ""
@@ -84,7 +84,7 @@ module XltTool =
 
     // Takes a list of database searches, and computes them with a parallel sequence.
     // Returns a list of results, that are in the same order as the searches.
-    let getToTextAsync searchList =
+    let GetToTextAsync searchList =
         searchList
         |> PSeq.ordered
         |> PSeq.map findTranslation
