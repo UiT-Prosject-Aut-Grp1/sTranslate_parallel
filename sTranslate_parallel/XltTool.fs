@@ -1,6 +1,7 @@
 ﻿namespace sTranslate_parallel
 
 module XltTool =
+    open System
     open FSharp.Data.TypeProviders
     open FSharp.Configuration
     open FSharpx.Collections.Experimental
@@ -83,8 +84,8 @@ module XltTool =
 
     // Takes a list of database searches, and computes them with a parallel sequence.
     // Returns a list of results, that are in the same order as the searches.
-    let getToTextAsync (searchList : Search FlatList) =
+    let getToTextAsync searchList =
         searchList
         |> PSeq.ordered
         |> PSeq.map findTranslation
-        |> FlatList.ofSeq
+        |> List.ofSeq
