@@ -48,7 +48,7 @@ module XltTool =
 
     // Copies the database to an efficient data structure
     let getTranslations = 
-        let db = dbSchema.GetDataContext(Settings.ConnectionStrings.DbConnectionString)
+        use db = dbSchema.GetDataContext(Settings.ConnectionStrings.DbConnectionString)
         query {
             for row in db.Translation do 
                 select row
